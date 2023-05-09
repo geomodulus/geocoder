@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+
+	expand "github.com/openvenues/gopostal/expand"
+	parser "github.com/openvenues/gopostal/parser"
 )
 
 type Geocoder struct {
@@ -27,10 +30,26 @@ func NewGeocoder(addressFile string) (*Geocoder, error) {
 }
 
 func (g *Geocoder) Geocode(address string) ([]float64, error) {
-	if loc, ok := g.data[normalize(address)]; ok {
-		return loc, nil
+	for _, tryAddr := range expand.ExpandAddress(parseAddress(address)) {
+		fmt.Printf("  Expansion: %+v\n", tryAddr)
+		if loc, ok := g.data[normalize(tryAddr)]; ok {
+			return loc, nil
+		}
 	}
 	return nil, fmt.Errorf("address not found")
+}
+
+func parseAddress(address string) string {
+	var num, street string
+	for _, parts := range parser.ParseAddress(address) {
+		if parts.Label == "house_number" {
+			num = parts.Value
+		}
+		if parts.Label == "road" {
+			street = parts.Value
+		}
+	}
+	return fmt.Sprintf("%s %s", num, street)
 }
 
 func normalize(in string) string {

@@ -23,19 +23,25 @@ func main() {
 	}
 	// loop to read commands and print output
 	for {
-		command, err := rl.Readline()
+		queryAddress, err := rl.Readline()
 		if err != nil {
 			break
 		}
 
 		// remove newline character from the end of the command string
-		command = strings.TrimSuffix(command, "\n")
+		if strings.HasSuffix(queryAddress, "\n") {
+			log.Println("Removing newline character from end of command string")
+			queryAddress = strings.TrimSuffix(queryAddress, "\n")
+		}
 
-		loc, err := geocoder.Geocode(command)
+		log.Println("Querying address:", queryAddress)
+
+		loc, err := geocoder.Geocode(queryAddress)
 		if err != nil {
-			fmt.Println("Error:", err)
+			log.Println("Address not found")
 			continue
 		}
+
 		// execute the command
 		fmt.Println("Location: ", loc)
 	}
