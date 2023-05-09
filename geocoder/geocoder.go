@@ -60,10 +60,12 @@ func normalize(in string) string {
 	fixedAddr = strings.Replace(fixedAddr, " AVE.", " AVE", 1)
 	fixedAddr = strings.Replace(fixedAddr, " BOULEVARD", " BLVD", 1)
 	fixedAddr = strings.Replace(fixedAddr, " BLVD.", " BLVD", 1)
+	fixedAddr = strings.Replace(fixedAddr, " DRIVE", " DR", 1)
 	fixedAddr = strings.Replace(fixedAddr, " GARDENS", " GDNS", 1)
 	fixedAddr = strings.Replace(fixedAddr, " ST.", " ST", 1)
 	fixedAddr = strings.Replace(fixedAddr, " ROAD", " RD", 1)
 	fixedAddr = strings.Replace(fixedAddr, " STREET", " ST", 1)
+	fixedAddr = strings.Replace(fixedAddr, " SAINT", " ST", 1)
 
 	fixedAddr = strings.Replace(fixedAddr, " GDNS CRCL", " GARDENS CRCL", 1)
 	fixedAddr = strings.Replace(fixedAddr, " RD CRES", " ROAD CRES", 1)
