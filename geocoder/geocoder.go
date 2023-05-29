@@ -52,6 +52,8 @@ func parseAddress(address string) string {
 	return fmt.Sprintf("%s %s", num, street)
 }
 
+// normalize converts an address from the language of the address parser into the language of
+// the address book.
 func normalize(in string) string {
 	fixedAddr := strings.TrimSpace(in)
 	fixedAddr = strings.ToUpper(fixedAddr)
@@ -62,8 +64,9 @@ func normalize(in string) string {
 	fixedAddr = strings.Replace(fixedAddr, " BLVD.", " BLVD", 1)
 	fixedAddr = strings.Replace(fixedAddr, " DRIVE", " DR", 1)
 	fixedAddr = strings.Replace(fixedAddr, " GARDENS", " GDNS", 1)
-	fixedAddr = strings.Replace(fixedAddr, " ST.", " ST", 1)
+	fixedAddr = strings.Replace(fixedAddr, " PARKWAY", " PKWY", 1)
 	fixedAddr = strings.Replace(fixedAddr, " ROAD", " RD", 1)
+	fixedAddr = strings.Replace(fixedAddr, " ST.", " ST", 1)
 	fixedAddr = strings.Replace(fixedAddr, " STREET", " ST", 1)
 	fixedAddr = strings.Replace(fixedAddr, " SAINT", " ST", 1)
 
@@ -93,6 +96,9 @@ func normalize(in string) string {
 
 	// Common misspellings.
 	fixedAddr = strings.Replace(fixedAddr, "LAKESHORE BLVD", "LAKE SHORE BLVD", 1)
+
+	// Apostrophes.
+	fixedAddr = strings.Replace(fixedAddr, "PRINCES BLVD", "PRINCES' BLVD", 1)
 
 	return fixedAddr
 }
