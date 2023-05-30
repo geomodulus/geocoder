@@ -26,80 +26,90 @@ func NewGeocoder(addressFile string) (*Geocoder, error) {
 		return nil, err
 	}
 
-	return &Geocoder{addressBook}, nil
+	normalizedAddressBook := map[string][]float64{}
+	for addr, loc := range addressBook {
+		parts := expand.ExpandAddress(parseTorontoAddress(addr))
+		if len(parts) == 0 {
+			continue
+		}
+		// Select longest part of the address as the normalized address.
+		var longest string
+		for _, part := range parts {
+			if len(part) > len(longest) {
+				longest = part
+			}
+		}
+
+		//fmt.Printf("  %q -> %q\n", addr, longest)
+		normalizedAddressBook[longest] = loc
+	}
+
+	return &Geocoder{normalizedAddressBook}, nil
 }
 
 func (g *Geocoder) Geocode(address string) ([]float64, error) {
-	for _, tryAddr := range expand.ExpandAddress(parseAddress(address)) {
+	//	fmt.Printf("  Normalized to %q\n", parseTorontoAddress(address))
+	//	fmt.Printf("  Expanded to %q\n", expand.ExpandAddressOptions(parseTorontoAddress(address), options))
+	parsed := parseTorontoAddress(address)
+	fmt.Printf("  Parsed: %+v\n", parsed)
+	options := expand.GetDefaultExpansionOptions()
+	options.Languages = []string{"en"}
+	for _, tryAddr := range expand.ExpandAddressOptions(parsed, options) {
 		fmt.Printf("  Expansion: %+v\n", tryAddr)
-		if loc, ok := g.data[normalize(tryAddr)]; ok {
+		if loc, ok := g.data[tryAddr]; ok {
 			return loc, nil
 		}
 	}
 	return nil, fmt.Errorf("address not found")
 }
 
-func parseAddress(address string) string {
+func parseTorontoAddress(address string) string {
 	var num, street string
-	for _, parts := range parser.ParseAddress(address) {
+	// We append the city because address parsing is more accurate with additional context.
+	useAddress := address + ", Toronto, ON, Canada"
+	for _, parts := range parser.ParseAddress(useAddress) {
 		if parts.Label == "house_number" {
 			num = parts.Value
 		}
 		if parts.Label == "road" {
 			street = parts.Value
+
+			if strings.HasSuffix(street, " circ") {
+				street = strings.Replace(street, " circ", " circle", 1)
+			}
+
+			if strings.HasSuffix(street, " dr.") {
+				street = replaceLastOccurrence(street, " dr.", " drive")
+			}
+			if strings.HasSuffix(street, " dr") {
+				street = replaceLastOccurrence(street, " dr", " drive")
+			}
+
+			// City of Toronto uses unusual "CRCL" abbreviation eg. for PRINGDALE GARDENS CRCL.
+			if strings.HasSuffix(street, " crcl") {
+				street = strings.Replace(street, " crcl", " circle", 1)
+			}
+
+			// This seems to be a Toronto-specific abbreviation.
+			if strings.HasSuffix(street, " gt") {
+				street = strings.Replace(street, " gt", " gate", 1)
+			}
+
+			// Common misspelling
+			street = strings.Replace(street, "lakeshore blvd", "lake shore blvd", 1)
 		}
 	}
 	return fmt.Sprintf("%s %s", num, street)
 }
 
-// normalize converts an address from the language of the address parser into the language of
-// the address book.
-func normalize(in string) string {
-	fixedAddr := strings.TrimSpace(in)
-	fixedAddr = strings.ToUpper(fixedAddr)
-	fixedAddr = strings.ReplaceAll(fixedAddr, "  ", " ")
-	fixedAddr = strings.Replace(fixedAddr, " AVENUE", " AVE", 1)
-	fixedAddr = strings.Replace(fixedAddr, " AVE.", " AVE", 1)
-	fixedAddr = strings.Replace(fixedAddr, " BOULEVARD", " BLVD", 1)
-	fixedAddr = strings.Replace(fixedAddr, " BLVD.", " BLVD", 1)
-	fixedAddr = strings.Replace(fixedAddr, " CRESCENT", " CRES", 1)
-	fixedAddr = strings.Replace(fixedAddr, " DRIVE", " DR", 1)
-	fixedAddr = strings.Replace(fixedAddr, " GARDENS", " GDNS", 1)
-	fixedAddr = strings.Replace(fixedAddr, " PARKWAY", " PKWY", 1)
-	fixedAddr = strings.Replace(fixedAddr, " ROAD", " RD", 1)
-	fixedAddr = strings.Replace(fixedAddr, " ST.", " ST", 1)
-	fixedAddr = strings.Replace(fixedAddr, " STREET", " ST", 1)
-	fixedAddr = strings.Replace(fixedAddr, " SAINT", " ST", 1)
-
-	fixedAddr = strings.Replace(fixedAddr, " GDNS CRCL", " GARDENS CRCL", 1)
-	fixedAddr = strings.Replace(fixedAddr, " RD CRES", " ROAD CRES", 1)
-
-	fixedAddr = strings.TrimRight(fixedAddr, ".")
-	if strings.HasSuffix(fixedAddr, " NORTH") {
-		fixedAddr = strings.TrimSuffix(fixedAddr, " NORTH")
-		fixedAddr += " N"
+func replaceLastOccurrence(s, old, new string) string {
+	i := strings.LastIndex(s, old)
+	if i == -1 {
+		return s
 	}
-	if strings.HasSuffix(fixedAddr, " SOUTH") {
-		fixedAddr = strings.TrimSuffix(fixedAddr, " SOUTH")
-		fixedAddr += " S"
-	}
-	if strings.HasSuffix(fixedAddr, " EAST") {
-		fixedAddr = strings.TrimSuffix(fixedAddr, " EAST")
-		fixedAddr += " E"
-	}
-	if strings.HasSuffix(fixedAddr, " WEST") {
-		fixedAddr = strings.TrimSuffix(fixedAddr, " WEST")
-		fixedAddr += " W"
-	}
-
-	// Accidental overrides.
-	fixedAddr = strings.Replace(fixedAddr, "AVE RD", "AVENUE RD", 1)
-
-	// Common misspellings.
-	fixedAddr = strings.Replace(fixedAddr, "LAKESHORE BLVD", "LAKE SHORE BLVD", 1)
-
-	// Apostrophes.
-	fixedAddr = strings.Replace(fixedAddr, "PRINCES BLVD", "PRINCES' BLVD", 1)
-
-	return fixedAddr
+	// original string up to the start of the old substring
+	prefix := s[:i]
+	// original string after the old substring
+	suffix := s[i+len(old):]
+	return prefix + new + suffix
 }
