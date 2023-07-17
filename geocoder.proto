@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option go_package = "./pb";
+
+message LngLat {
+  double lng = 1;
+  double lat = 2;
+}
+
+message Address {
+  string number = 1;
+  string street = 2;
+  string municipality = 3;
+
+  LngLat location = 4;
+}
+
+message Intersection {
+  string street = 1;
+  string cross_street = 2;
+  string municipality = 3;
+
+  LngLat location = 4;
+
+  string desc = 5;
+}

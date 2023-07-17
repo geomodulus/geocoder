@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	geocoder, err := geocoder.NewGeocoder("./address_book.json")
+	geocoder, err := geocoder.NewGeocoder("./addresses.dat", "./xstreets.dat")
 	if err != nil {
 		fmt.Println("Error initializing Geocoder:", err)
 		return
