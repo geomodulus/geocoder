@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"strings"
@@ -11,11 +12,16 @@ import (
 )
 
 func main() {
-	geocoder, err := geocoder.NewGeocoder("./addresses.dat", "./xstreets.dat")
+	fileName := flag.String("file", "./toronto_geocode.dat", "Where to write geocode index.")
+	flag.Parse()
+
+	fmt.Printf("Loading index...")
+	geocoder, err := geocoder.NewGeocoder(*fileName)
 	if err != nil {
 		fmt.Println("Error initializing Geocoder:", err)
 		return
 	}
+	fmt.Printf("ready!\n")
 
 	rl, err := readline.New(">> ")
 	if err != nil {
@@ -43,6 +49,6 @@ func main() {
 		}
 
 		// execute the command
-		fmt.Println("Location: ", loc)
+		fmt.Printf("Location: [%.5f, %.5f]\n", loc[0], loc[1])
 	}
 }

@@ -48,15 +48,17 @@ type Geocoder struct {
 	Intersections map[string]map[string]Coords
 }
 
-func NewGeocoder(addressFile string, xstreetsFile string) (*Geocoder, error) {
-	xstreetRecords, err := os.Open(xstreetsFile)
+func NewGeocoder(indexFile string) (*Geocoder, error) {
+	records, err := os.Open(indexFile)
 	if err != nil {
 		return nil, fmt.Errorf("error opening xstreets file: %v", err)
 	}
+
+	addressBook := trie.NewPathTrie()
 	xstreets := map[string]map[string]Coords{}
 
 	for {
-		data, err := readRecord(xstreetRecords)
+		data, err := readRecord(records)
 		if err == io.EOF {
 			break
 		}
@@ -64,92 +66,35 @@ func NewGeocoder(addressFile string, xstreetsFile string) (*Geocoder, error) {
 			return nil, fmt.Errorf("error reading xstreet record: %v", err)
 		}
 
-		xstreet := &pb.Intersection{}
-		if err := proto.Unmarshal(data, xstreet); err != nil {
+		loc := &pb.Location{}
+		if err := proto.Unmarshal(data, loc); err != nil {
 			return nil, fmt.Errorf("error unmarshalling xstreet record: %v", err)
 		}
 
-		switch xstreet.Desc {
+		if loc.CrossStreet == "" {
+			// An address
+			// Normalize the street address here
+			addr := fmt.Sprintf("%s %s", loc.Number, normalizeStreet(loc.Street))
+			expanded := longestExpansion(addr)
+
+			addressBook.Put(makeKey(expanded), loc.Location)
+			continue
+		}
+
+		// An intersection
+
+		switch loc.Desc {
 		case "Laneway", "Pedatraian", "Railway", "Utility":
 			continue
 		}
 
-		if xstreet.CrossStreet == "" {
-			continue
-		}
-
-		street := longestExpansion(normalizeStreet(xstreet.Street))
-		crossStreet := longestExpansion(normalizeStreet(xstreet.CrossStreet))
+		street := longestExpansion(normalizeStreet(loc.Street))
+		crossStreet := longestExpansion(normalizeStreet(loc.CrossStreet))
 		if _, ok := xstreets[street]; !ok {
 			xstreets[street] = map[string]Coords{}
 		}
-		xstreets[street][crossStreet] = Coords{xstreet.Location.Lng, xstreet.Location.Lat}
+		xstreets[street][crossStreet] = Coords{loc.Location.Lng, loc.Location.Lat}
 	}
-
-	//	for street, crossStreets := range xstreets {
-	//		if !strings.Contains(street, "yonge street") {
-	//			continue
-	//		}
-	//		fmt.Println(street)
-	//		for crossStreet, coords := range crossStreets {
-	//			fmt.Println("  ", crossStreet, coords)
-	//		}
-	//	}
-
-	addressRecords, err := os.Open(addressFile)
-	if err != nil {
-		return nil, fmt.Errorf("error opening address file: %v", err)
-	}
-
-	addressBook := trie.NewPathTrie()
-
-	for {
-		data, err := readRecord(addressRecords)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error reading address record: %v", err)
-		}
-
-		address := &pb.Address{}
-		if err := proto.Unmarshal(data, address); err != nil {
-			return nil, fmt.Errorf("error unmarshalling address record: %v", err)
-		}
-
-		// Normalize the street address here
-		addr := fmt.Sprintf("%s %s", address.Number, normalizeStreet(address.Street))
-		expanded := longestExpansion(addr)
-
-		addressBook.Put(makeKey(expanded), address.Location)
-	}
-
-	// 	Suffix counting
-	//	suffixes := map[string]int{}
-	//	suffixOutput := []string{}
-	//	for suffix := range suffixes {
-	//		suffixOutput = append(suffixOutput, suffix)
-	//	}
-	//	type kv struct {
-	//		Key   string
-	//		Value int
-	//	}
-	//
-	//	var ss []kv
-	//	total := 0
-	//	for k, v := range suffixes {
-	//		total += v
-	//		ss = append(ss, kv{k, v})
-	//	}
-	//
-	//	sort.Slice(ss, func(i, j int) bool {
-	//		return ss[i].Value > ss[j].Value // sort in descending order
-	//	})
-	//
-	//	fmt.Printf("Suffixes (%d in all):\n", total)
-	//	for _, kv := range ss {
-	//		fmt.Printf("%s, %d\n", kv.Key, kv.Value)
-	//	}
 
 	return &Geocoder{addressBook, xstreets}, nil
 }
@@ -165,10 +110,6 @@ func (g *Geocoder) Geocode(address string) ([]float64, error) {
 		}
 		expanded1 := longestExpansion(normalizeStreet(xstreet.Street1))
 		expanded2 := longestExpansion(normalizeStreet(xstreet.Street2))
-		fmt.Printf(
-			"  Parse intersection: %q at %q\n",
-			expanded1,
-			expanded2)
 
 		loc, ok := g.findIntersection(expanded1, expanded2)
 		if !ok {
@@ -177,12 +118,10 @@ func (g *Geocoder) Geocode(address string) ([]float64, error) {
 		return loc, nil
 	}
 
-	fmt.Printf("  Parsed address: %s %s\n", num, street)
 	options := expand.GetDefaultExpansionOptions()
 	options.Languages = []string{"en"}
 	for _, tryAddr := range expand.ExpandAddressOptions(num+" "+street, options) {
 		key := makeKey(tryAddr)
-		fmt.Printf("  Expansion: %q, key: %s\n", tryAddr, key)
 		if len(key) < 3 {
 			continue
 		}
