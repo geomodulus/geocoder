@@ -42,7 +42,7 @@ buffer for serialization.
 
 First, start the service:
 
-    %> go run indexer/main.go
+    %> go run main.go
     Loading index...Ready!
     >> 
 
