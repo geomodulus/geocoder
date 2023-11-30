@@ -38,18 +38,18 @@ func main() {
 	}
 	defer indexFile.Close()
 
-	fmt.Println("Working...")
+	fmt.Println("Indexing...")
 
 	if err := IngestTorontoAddresses(indexFile); err != nil {
 		log.Fatalf("Toronto addresses: %v", err)
 	}
 	IngestTorontoIntersections(indexFile)
 
-	fmt.Println("Wrote", *fileName)
+	fmt.Println("\nWrote", *fileName)
 }
 
 func IngestTorontoAddresses(indexFile *os.File) error {
-	fmt.Println("Ingesting Toronto addresses from", TorontoAddressURL)
+	fmt.Println("\nIngesting Toronto addresses from", TorontoAddressURL)
 	jsonFile, err := loadURL(TorontoAddressURL)
 	if err != nil {
 		return fmt.Errorf("error reading URL %q: %w", TorontoAddressURL, err)
@@ -122,7 +122,7 @@ func IngestTorontoAddresses(indexFile *os.File) error {
 }
 
 func IngestTorontoIntersections(indexFile *os.File) {
-	fmt.Println("Ingesting Toronto intersections from", TorontoXStreetURL)
+	fmt.Println("\nIngesting Toronto intersections from", TorontoXStreetURL)
 	jsonFile, err := loadURL(TorontoXStreetURL)
 	if err != nil {
 		fmt.Printf("Error reading URL %q: %v\n", TorontoXStreetURL, err)
