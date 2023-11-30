@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/paulmach/go.geojson"
+	"github.com/schollz/progressbar/v3"
 
 	"github.com/geomodulus/geocoder/pb"
 )
@@ -48,7 +49,7 @@ func main() {
 }
 
 func IngestTorontoAddresses(indexFile *os.File) error {
-	// Toronto Addresses
+	fmt.Println("Ingesting Toronto addresses from", TorontoAddressURL)
 	jsonFile, err := loadURL(TorontoAddressURL)
 	if err != nil {
 		return fmt.Errorf("error reading URL %q: %w", TorontoAddressURL, err)
@@ -121,6 +122,7 @@ func IngestTorontoAddresses(indexFile *os.File) error {
 }
 
 func IngestTorontoIntersections(indexFile *os.File) {
+	fmt.Println("Ingesting Toronto intersections from", TorontoXStreetURL)
 	jsonFile, err := loadURL(TorontoXStreetURL)
 	if err != nil {
 		fmt.Printf("Error reading URL %q: %v\n", TorontoXStreetURL, err)
@@ -194,7 +196,13 @@ func loadURL(url string) ([]byte, error) {
 		return nil, fmt.Errorf("error: status code is not OK: %d", resp.StatusCode)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	body, _, err := downloadWithProgress(url)
+	if err != nil {
+		return nil, fmt.Errorf("error downloading data: %w", err)
+	}
+
+	data, err := io.ReadAll(body)
+	defer body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
@@ -211,4 +219,32 @@ func writeRecord(w io.Writer, data []byte) error {
 	}
 	_, err := w.Write(data)
 	return err
+}
+
+func downloadWithProgress(url string) (*progressbar.Reader, int64, error) {
+	// Initiate HTTP request
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Check for HTTP response errors
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, 0, fmt.Errorf("HTTP request error: %s", resp.Status)
+	}
+
+	// Check content length
+	totalBytes := resp.ContentLength
+
+	// Create a progress bar
+	bar := progressbar.DefaultBytes(
+		totalBytes,
+		"downloading",
+	)
+
+	// Wrap the response body in a progressbar reader
+	progressBarReader := progressbar.NewReader(resp.Body, bar)
+
+	return &progressBarReader, totalBytes, nil
 }

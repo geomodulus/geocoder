@@ -12,6 +12,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	expand "github.com/openvenues/gopostal/expand"
 	parser "github.com/openvenues/gopostal/parser"
+	"github.com/schollz/progressbar/v3"
 
 	"github.com/geomodulus/geocoder/intersections"
 	"github.com/geomodulus/geocoder/pb"
@@ -51,8 +52,19 @@ type Geocoder struct {
 func NewGeocoder(indexFile string) (*Geocoder, error) {
 	records, err := os.Open(indexFile)
 	if err != nil {
-		return nil, fmt.Errorf("error opening xstreets file: %v", err)
+		return nil, fmt.Errorf("error opening index file: %v", err)
 	}
+
+	var (
+		progress = progressbar.NewOptions(
+			-1,
+			progressbar.OptionShowBytes(false),
+			progressbar.OptionSetDescription("Loading geocoder index..."),
+			progressbar.OptionSpinnerType(14),
+		)
+		progressBuffer    = 0
+		progressBatchSize = 25
+	)
 
 	addressBook := trie.NewPathTrie()
 	xstreets := map[string]map[string]Coords{}
@@ -78,22 +90,24 @@ func NewGeocoder(indexFile string) (*Geocoder, error) {
 			expanded := longestExpansion(addr)
 
 			addressBook.Put(makeKey(expanded), loc.Location)
-			continue
-		}
+		} else {
+			// An intersection
+			switch loc.Desc {
+			case "Laneway", "Pedatraian", "Railway", "Utility":
+				continue
+			}
 
-		// An intersection
-
-		switch loc.Desc {
-		case "Laneway", "Pedatraian", "Railway", "Utility":
-			continue
+			street := longestExpansion(normalizeStreet(loc.Street))
+			crossStreet := longestExpansion(normalizeStreet(loc.CrossStreet))
+			if _, ok := xstreets[street]; !ok {
+				xstreets[street] = map[string]Coords{}
+			}
+			xstreets[street][crossStreet] = Coords{loc.Location.Lng, loc.Location.Lat}
 		}
-
-		street := longestExpansion(normalizeStreet(loc.Street))
-		crossStreet := longestExpansion(normalizeStreet(loc.CrossStreet))
-		if _, ok := xstreets[street]; !ok {
-			xstreets[street] = map[string]Coords{}
+		if progressBuffer++; progressBuffer == progressBatchSize {
+			progress.Add(progressBatchSize)
+			progressBuffer = 0
 		}
-		xstreets[street][crossStreet] = Coords{loc.Location.Lng, loc.Location.Lat}
 	}
 
 	return &Geocoder{addressBook, xstreets}, nil

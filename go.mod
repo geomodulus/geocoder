@@ -8,7 +8,13 @@ require (
 	github.com/golang/protobuf v1.5.3
 	github.com/openvenues/gopostal v0.0.0-20171226154602-e0184512a45d
 	github.com/paulmach/go.geojson v1.4.0
+	github.com/schollz/progressbar/v3 v3.14.1
 	google.golang.org/protobuf v1.30.0
 )
 
-require golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
+require (
+	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
+	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/term v0.14.0 // indirect
+)
