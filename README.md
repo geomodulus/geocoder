@@ -19,13 +19,13 @@ matches the intuitive `[x, y]` construction for cartesian coordinates.
 
 Most geocoding services available on the web are cost prohibitive for offline
 analysis of large datasets. For instance, Google's Geocoding API has a [USD$4
-cost](https://developers.google.com/maps/documentation/geocoding/usage-and-billing)
-for requests even at high volumes.
+CPM cost](https://developers.google.com/maps/documentation/geocoding/usage-and-billing)
+for requests at high volume.
 
 For instance, a municipal open dataset like the City of Toronto's [record of 
 parking tickets](https://open.toronto.ca/dataset/parking-tickets/) would be 
-very costly to geocode as it contains many records located at thousands of
-addresses across the city from many prior years.
+very costly to geocode as it contains many records located at tens of thousands
+of addresses across the city from many prior years.
 
 With this open source software, that work is free.
 
@@ -34,8 +34,9 @@ With this open source software, that work is free.
 The index is built live from real municipal open datasets each time the
 indexer is run.
 
-The resulting index is saved on disk in recordIO format using this protocol
-buffer for serialization.
+The resulting index is saved on disk in recordIO format using this [protocol
+buffer](https://github.com/geomodulus/geocoder/blob/main/geocoder.proto) for
+serialization.
 
     %> go run indexer/main.go
     Indexing...
@@ -46,7 +47,6 @@ buffer for serialization.
 
     Ingesting Toronto intersections,,,
     downloading 100% |██████████████████████████████████████████████████████| (38/38 MB, 12 MB/s)
-    Intersections done!
     47416 intersections written to file
 
     Wrote ./toronto_geocode.dat
@@ -59,14 +59,11 @@ First, start the service:
     ⠙ Loading geocoder index...  [27s] ready!
     >> 
 
-The geocoding service is available both on the command line and as a GRPC
-service. On the command line, simply enter your query and get a result:
+The geocoding service is available both on the command line and as a Go
+library. On the command line, simply enter your query and get a result:
 
     >> 299 Queen St W
     Location: [-79.39038, 43.64955]
-
-On the RPC interface, you can send a query and get a response at an extremely
-high
 
 ## Contributing
 
@@ -74,4 +71,4 @@ Some places to start:
 
 - New municipalities (Missisauga, Markham, Pickering, etc).
 - Points of Interest sourced from OSM.
-- Command-line GRPC client for high-throughput scripting.
+- Command-line GRPC server/client for high-throughput scripting.

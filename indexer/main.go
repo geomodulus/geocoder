@@ -180,7 +180,6 @@ func IngestTorontoIntersections(indexFile *os.File) {
 		recordCount++
 	}
 
-	fmt.Println("Intersections done!")
 	fmt.Println(recordCount, "intersections written to file")
 }
 
